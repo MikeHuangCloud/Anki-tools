@@ -19,9 +19,11 @@
             padding: 20px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
-        h1 {
+        h1, h2 {
             color: #2c3e50;
             text-align: center;
+        }
+        h1 {
             margin-bottom: 30px;
         }
         .section {
@@ -54,6 +56,7 @@
             cursor: pointer;
             font-size: 16px;
             transition: background-color 0.3s;
+            margin: 0 5px;
         }
         button:hover {
             background-color: #2980b9;
@@ -87,6 +90,13 @@
             display: flex;
             justify-content: center;
             gap: 10px;
+            flex-wrap: wrap;
+        }
+        .answer-controls {
+            display: flex;
+            justify-content: center;
+            margin-top: 10px;
+            gap: 10px;
         }
         .flip-button {
             background-color: #2ecc71;
@@ -99,6 +109,25 @@
         }
         .next-button:hover {
             background-color: #c0392b;
+        }
+        .correct-button {
+            background-color: #2ecc71;
+        }
+        .correct-button:hover {
+            background-color: #27ae60;
+        }
+        .incorrect-button {
+            background-color: #e74c3c;
+        }
+        .incorrect-button:hover {
+            background-color: #c0392b;
+        }
+        .end-button {
+            background-color: #9b59b6;
+            margin-top: 15px;
+        }
+        .end-button:hover {
+            background-color: #8e44ad;
         }
         .status {
             margin-top: 15px;
@@ -156,6 +185,39 @@
             border-radius: 4px;
             font-size: 14px;
         }
+        .result-container {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .score {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        .wrong-words {
+            text-align: left;
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .wrong-words h3 {
+            margin-top: 0;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+            color: #e74c3c;
+        }
+        .wrong-word-item {
+            margin-bottom: 8px;
+            padding: 8px;
+            border-radius: 3px;
+            background-color: #ffeeee;
+        }
     </style>
 </head>
 <body>
@@ -166,6 +228,7 @@
             <button class="tab-button active" onclick="openTab(event, 'import')">匯入單字</button>
             <button class="tab-button" onclick="openTab(event, 'test')" id="test-tab">測驗</button>
             <button class="tab-button" onclick="openTab(event, 'settings')">設定</button>
+            <button class="tab-button" onclick="openTab(event, 'results')" id="results-tab">結果</button>
         </div>
         
         <div id="import" class="tab-content active">
@@ -198,8 +261,13 @@
                     </div>
                     <div class="controls">
                         <button class="flip-button" onclick="flipCard()">查看答案</button>
-                        <button class="next-button" onclick="nextWord()">下一個</button>
+                        <div class="answer-controls hidden" id="answer-controls">
+                            <button class="correct-button" onclick="markAnswer(true)">答對</button>
+                            <button class="incorrect-button" onclick="markAnswer(false)">答錯</button>
+                        </div>
+                        <button class="next-button" onclick="nextWord()" id="next-button">下一個</button>
                     </div>
+                    <button class="end-button" onclick="endTest()">結束測驗</button>
                     <div id="test-status" class="status"></div>
                 </div>
             </div>
@@ -221,6 +289,29 @@
                     <label><input type="radio" name="order-mode" value="sequential"> 按順序</label>
                 </div>
             </div>
+            <div class="section">
+                <label>評分方式：</label>
+                <div class="options">
+                    <label><input type="radio" name="scoring-mode" value="after-flip" checked> 查看答案後評分</label>
+                    <label><input type="radio" name="scoring-mode" value="auto-next"> 評分後自動下一題</label>
+                </div>
+            </div>
+        </div>
+        
+        <div id="results" class="tab-content">
+            <div id="no-results" class="info">尚未完成測驗，請先完成測驗。</div>
+            <div id="results-area" class="hidden">
+                <div class="result-container">
+                    <h2>測驗結果</h2>
+                    <div class="score" id="score-display"></div>
+                    <div id="wrong-words-container" class="wrong-words hidden">
+                        <h3>錯誤題目</h3>
+                        <div id="wrong-words-list"></div>
+                        <button onclick="retestWrongWords()" class="flip-button" style="margin-top: 15px;">重新測驗錯誤題目</button>
+                    </div>
+                    <button onclick="restartTest()" class="next-button" style="margin-top: 15px;">重新開始測驗</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -229,6 +320,11 @@
         let vocabulary = [];
         let currentIndex = -1;
         let showingWord = true;
+        let answered = [];  // 記錄每題的答題情況
+        let wrongWords = []; // 錯誤的單字索引
+        let inProgress = false; // 測驗是否進行中
+        let isRetesting = false; // 是否正在重測錯誤題目
+        let retestIndices = []; // 重測的題目索引
         
         // 切換標籤頁
         function openTab(evt, tabName) {
@@ -272,7 +368,7 @@
                 
                 // 自動切換到測驗頁
                 document.getElementById("test-tab").click();
-                resetTest();
+                startNewTest();
             } else {
                 document.getElementById("import-status").textContent = "無法匯入單字，請檢查格式！";
             }
@@ -301,10 +397,15 @@
             }
         }
         
-        // 重置測驗
-        function resetTest() {
+        // 開始新測驗
+        function startNewTest() {
             currentIndex = -1;
             showingWord = true;
+            answered = Array(vocabulary.length).fill(null);  // null表示未答題
+            wrongWords = [];
+            inProgress = true;
+            isRetesting = false;
+            retestIndices = [];
             
             // 根據選項排序單字
             const orderMode = document.querySelector('input[name="order-mode"]:checked').value;
@@ -312,6 +413,10 @@
                 // 隨機打亂順序
                 shuffleArray(vocabulary);
             }
+            
+            // 重設答案控制區域的顯示狀態
+            document.getElementById("answer-controls").classList.add("hidden");
+            document.getElementById("next-button").classList.remove("hidden");
             
             nextWord();
         }
@@ -323,9 +428,34 @@
                 return;
             }
             
-            currentIndex = (currentIndex + 1) % vocabulary.length;
+            if (!inProgress) {
+                document.getElementById("test-status").textContent = "測驗已結束，請點擊「重新開始測驗」按鈕重新開始。";
+                return;
+            }
+            
+            // 顯示下一個單字
+            if (isRetesting) {
+                if (retestIndices.length === 0) {
+                    document.getElementById("test-status").textContent = "已完成所有錯誤題目的重測！";
+                    endTest();
+                    return;
+                }
+                currentIndex = retestIndices.shift();
+            } else {
+                currentIndex = (currentIndex + 1) % vocabulary.length;
+                
+                // 如果已經測驗完所有單字，提示用戶
+                if (currentIndex === 0 && answered.some(a => a !== null)) {
+                    document.getElementById("test-status").textContent = "已完成所有單字測驗，請點擊「結束測驗」查看結果。";
+                }
+            }
+            
             const wordCounter = document.getElementById("word-counter");
-            wordCounter.textContent = `${currentIndex + 1}/${vocabulary.length}`;
+            if (isRetesting) {
+                wordCounter.textContent = `重測 ${wrongWords.length - retestIndices.length}/${wrongWords.length}`;
+            } else {
+                wordCounter.textContent = `${currentIndex + 1}/${vocabulary.length}`;
+            }
             
             const testMode = document.querySelector('input[name="test-mode"]:checked').value;
             
@@ -336,12 +466,25 @@
             }
             
             updateCardDisplay();
+            
+            // 重置答題控制區域
+            const answerControls = document.getElementById("answer-controls");
+            const scoringMode = document.querySelector('input[name="scoring-mode"]:checked').value;
+            if (scoringMode === "after-flip") {
+                answerControls.classList.add("hidden");
+            }
         }
         
         // 翻轉卡片
         function flipCard() {
             showingWord = !showingWord;
             updateCardDisplay();
+            
+            // 如果設置為查看答案後評分，顯示評分按鈕
+            const scoringMode = document.querySelector('input[name="scoring-mode"]:checked').value;
+            if (scoringMode === "after-flip") {
+                document.getElementById("answer-controls").classList.remove("hidden");
+            }
         }
         
         // 更新卡片顯示
@@ -368,6 +511,99 @@
             }
         }
         
+        // 標記答案
+        function markAnswer(isCorrect) {
+            if (!inProgress) return;
+            
+            // 記錄答題結果
+            answered[currentIndex] = isCorrect;
+            
+            // 如果答錯，記錄到錯誤單字列表
+            if (!isCorrect && !wrongWords.includes(currentIndex)) {
+                wrongWords.push(currentIndex);
+            }
+            
+            document.getElementById("test-status").textContent = isCorrect ? "✅ 答對了！" : "❌ 答錯了！";
+            
+            // 如果設置為評分後自動下一題
+            const scoringMode = document.querySelector('input[name="scoring-mode"]:checked').value;
+            if (scoringMode === "auto-next") {
+                setTimeout(() => {
+                    nextWord();
+                }, 1000);
+            }
+        }
+        
+        // 結束測驗
+        function endTest() {
+            if (vocabulary.length === 0) return;
+            
+            inProgress = false;
+            
+            // 計算得分
+            const answeredCount = answered.filter(a => a !== null).length;
+            const correctCount = answered.filter(a => a === true).length;
+            
+            // 顯示結果
+            document.getElementById("score-display").textContent = 
+                `總共 ${vocabulary.length} 題，已作答 ${answeredCount} 題，答對 ${correctCount} 題` + 
+                (answeredCount > 0 ? `（正確率 ${Math.round(correctCount / answeredCount * 100)}%）` : "");
+            
+            // 顯示錯誤題目
+            const wrongWordsContainer = document.getElementById("wrong-words-container");
+            const wrongWordsList = document.getElementById("wrong-words-list");
+            wrongWordsList.innerHTML = "";
+            
+            if (wrongWords.length > 0) {
+                wrongWordsContainer.classList.remove("hidden");
+                
+                wrongWords.forEach(index => {
+                    const item = vocabulary[index];
+                    const wrongWordItem = document.createElement("div");
+                    wrongWordItem.className = "wrong-word-item";
+                    wrongWordItem.textContent = `${item.word}（${item.meaning}）`;
+                    wrongWordsList.appendChild(wrongWordItem);
+                });
+            } else {
+                wrongWordsContainer.classList.add("hidden");
+            }
+            
+            // 顯示結果頁
+            document.getElementById("no-results").classList.add("hidden");
+            document.getElementById("results-area").classList.remove("hidden");
+            document.getElementById("results-tab").click();
+        }
+        
+        // 重新測驗錯誤題目
+        function retestWrongWords() {
+            if (wrongWords.length === 0) return;
+            
+            isRetesting = true;
+            inProgress = true;
+            
+            // 複製錯誤題目索引用於重測
+            retestIndices = [...wrongWords];
+            
+            // 隨機打亂重測順序
+            shuffleArray(retestIndices);
+            
+            // 重置答題記錄
+            answered = Array(vocabulary.length).fill(null);
+            wrongWords = [];
+            
+            // 切換到測驗頁
+            document.getElementById("test-tab").click();
+            
+            // 開始重測
+            nextWord();
+        }
+        
+        // 重新開始測驗
+        function restartTest() {
+            document.getElementById("test-tab").click();
+            startNewTest();
+        }
+        
         // 打亂數組順序
         function shuffleArray(array) {
             for (let i = array.length - 1; i > 0; i--) {
@@ -379,8 +615,8 @@
         // 為設定中的選項添加事件監聽器
         document.querySelectorAll('input[name="test-mode"], input[name="order-mode"]').forEach(radio => {
             radio.addEventListener('change', function() {
-                if (vocabulary.length > 0) {
-                    resetTest();
+                if (vocabulary.length > 0 && !inProgress) {
+                    startNewTest();
                 }
             });
         });
