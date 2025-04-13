@@ -1,5 +1,7 @@
 Create by claude
 
+[vocabulary-flashcard](https://mikehuangcloud.github.io/Anki-tools/vocabulary-flashcard.html)
+
 我已經根據您的要求修改了網頁，現在它可以處理以逗號分隔的單字，並從括號中提取答案。主要變更如下：
 
 1. **匯入格式更新**：
