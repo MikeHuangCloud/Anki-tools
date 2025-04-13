@@ -149,6 +149,13 @@
         .options input {
             margin-right: 5px;
         }
+        .formats {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #eee;
+            border-radius: 4px;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -164,9 +171,17 @@
         <div id="import" class="tab-content active">
             <div class="section">
                 <label for="vocabulary">請輸入單字表：</label>
-                <div class="info">請輸入以逗號分隔的單字，答案放在括號中。例如：焦る（あせる）, 慌てる（あわてる）, 疑う（うたがう）</div>
+                <div class="info">請輸入以逗號分隔的單字，答案可放在括號或小括號中（支援全形與半形符號）</div>
+                <div class="formats">
+                    支援的格式：<br>
+                    - 焦る（あせる）, 慌てる（あわてる）, 疑う（うたがう）<br>
+                    - 静か(しずか), 急ぐ(いそぐ), 病院(びょういん)<br>
+                    - 全形逗號、半形逗號都可以使用
+                </div>
                 <textarea id="vocabulary" placeholder="例如：
-焦る（あせる）, 慌てる（あわてる）, 疑う（うたがう）"></textarea>
+焦る（あせる）, 慌てる（あわてる）, 疑う（うたがう）
+或
+静か(しずか), 急ぐ(いそぐ), 病院(びょういん)"></textarea>
                 <button id="import-btn" onclick="importVocabulary()">匯入單字</button>
                 <div id="import-status" class="status"></div>
             </div>
@@ -241,8 +256,8 @@
             
             vocabulary = [];
             
-            // 以逗號分隔詞彙
-            const entries = text.split(/,\s*/);
+            // 以逗號分隔詞彙（同時支持全形和半形逗號）
+            const entries = text.split(/[,，]\s*/);
             
             for (const entry of entries) {
                 if (entry.trim()) {
@@ -265,8 +280,9 @@
         
         // 解析並添加單字到詞彙表
         function parseAndAddWord(entry) {
-            // 使用正則表達式提取括號內的內容作為答案
-            const match = entry.match(/^(.+?)（(.+?)）$/);
+            // 使用正則表達式匹配多種可能的括號格式
+            // 同時支持全形括號「（）」和半形括號「()」
+            const match = entry.match(/^(.+?)[\(（](.+?)[\)）]$/);
             
             if (match) {
                 const word = match[1].trim();
@@ -277,7 +293,7 @@
                     meaning: meaning
                 });
             } else {
-                // 如果沒有匹配到括號格式，嘗試其他格式或直接添加
+                // 如果沒有匹配到括號格式，直接添加
                 vocabulary.push({
                     word: entry,
                     meaning: ""
