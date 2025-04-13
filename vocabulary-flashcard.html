@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>單字學習與測驗</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .info {
+            color: #7f8c8d;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        .card {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 30px;
+            margin-top: 20px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+        }
+        .word {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+        .flip-button {
+            background-color: #2ecc71;
+        }
+        .flip-button:hover {
+            background-color: #27ae60;
+        }
+        .next-button {
+            background-color: #e74c3c;
+        }
+        .next-button:hover {
+            background-color: #c0392b;
+        }
+        .status {
+            margin-top: 15px;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        .hidden {
+            display: none;
+        }
+        .tab {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 20px;
+        }
+        .tab-button {
+            padding: 10px 20px;
+            background-color: #f1f1f1;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 5px;
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+        }
+        .tab-button.active {
+            background-color: #3498db;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .counter {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 12px;
+            color: #95a5a6;
+        }
+        .options label {
+            display: inline-block;
+            margin-right: 15px;
+            font-weight: normal;
+        }
+        .options input {
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>單字學習與測驗</h1>
+        
+        <div class="tab">
+            <button class="tab-button active" onclick="openTab(event, 'import')">匯入單字</button>
+            <button class="tab-button" onclick="openTab(event, 'test')" id="test-tab">測驗</button>
+            <button class="tab-button" onclick="openTab(event, 'settings')">設定</button>
+        </div>
+        
+        <div id="import" class="tab-content active">
+            <div class="section">
+                <label for="vocabulary">請輸入單字表：</label>
+                <div class="info">請輸入以逗號分隔的單字，答案放在括號中。例如：焦る（あせる）, 慌てる（あわてる）, 疑う（うたがう）</div>
+                <textarea id="vocabulary" placeholder="例如：
+焦る（あせる）, 慌てる（あわてる）, 疑う（うたがう）"></textarea>
+                <button id="import-btn" onclick="importVocabulary()">匯入單字</button>
+                <div id="import-status" class="status"></div>
+            </div>
+        </div>
+        
+        <div id="test" class="tab-content">
+            <div class="section">
+                <div id="no-words" class="info">請先匯入單字表開始測驗。</div>
+                <div id="test-area" class="hidden">
+                    <div class="card">
+                        <div class="counter" id="word-counter">0/0</div>
+                        <div class="word" id="current-word">準備好了嗎？</div>
+                        <div class="word hidden" id="current-meaning"></div>
+                    </div>
+                    <div class="controls">
+                        <button class="flip-button" onclick="flipCard()">查看答案</button>
+                        <button class="next-button" onclick="nextWord()">下一個</button>
+                    </div>
+                    <div id="test-status" class="status"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="settings" class="tab-content">
+            <div class="section">
+                <label>測驗模式：</label>
+                <div class="options">
+                    <label><input type="radio" name="test-mode" value="word-to-meaning" checked> 詞→讀音</label>
+                    <label><input type="radio" name="test-mode" value="meaning-to-word"> 讀音→詞</label>
+                    <label><input type="radio" name="test-mode" value="random"> 隨機</label>
+                </div>
+            </div>
+            <div class="section">
+                <label>排序方式：</label>
+                <div class="options">
+                    <label><input type="radio" name="order-mode" value="random" checked> 隨機順序</label>
+                    <label><input type="radio" name="order-mode" value="sequential"> 按順序</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局變數
+        let vocabulary = [];
+        let currentIndex = -1;
+        let showingWord = true;
+        
+        // 切換標籤頁
+        function openTab(evt, tabName) {
+            const tabContents = document.getElementsByClassName("tab-content");
+            for (let i = 0; i < tabContents.length; i++) {
+                tabContents[i].classList.remove("active");
+            }
+            
+            const tabButtons = document.getElementsByClassName("tab-button");
+            for (let i = 0; i < tabButtons.length; i++) {
+                tabButtons[i].classList.remove("active");
+            }
+            
+            document.getElementById(tabName).classList.add("active");
+            evt.currentTarget.classList.add("active");
+        }
+        
+        // 匯入單字
+        function importVocabulary() {
+            const text = document.getElementById("vocabulary").value.trim();
+            if (!text) {
+                document.getElementById("import-status").textContent = "請輸入單字表！";
+                return;
+            }
+            
+            vocabulary = [];
+            
+            // 以逗號分隔詞彙
+            const entries = text.split(/,\s*/);
+            
+            for (const entry of entries) {
+                if (entry.trim()) {
+                    parseAndAddWord(entry.trim());
+                }
+            }
+            
+            if (vocabulary.length > 0) {
+                document.getElementById("import-status").textContent = `成功匯入 ${vocabulary.length} 個單字！`;
+                document.getElementById("no-words").classList.add("hidden");
+                document.getElementById("test-area").classList.remove("hidden");
+                
+                // 自動切換到測驗頁
+                document.getElementById("test-tab").click();
+                resetTest();
+            } else {
+                document.getElementById("import-status").textContent = "無法匯入單字，請檢查格式！";
+            }
+        }
+        
+        // 解析並添加單字到詞彙表
+        function parseAndAddWord(entry) {
+            // 使用正則表達式提取括號內的內容作為答案
+            const match = entry.match(/^(.+?)（(.+?)）$/);
+            
+            if (match) {
+                const word = match[1].trim();
+                const meaning = match[2].trim();
+                
+                vocabulary.push({
+                    word: word,
+                    meaning: meaning
+                });
+            } else {
+                // 如果沒有匹配到括號格式，嘗試其他格式或直接添加
+                vocabulary.push({
+                    word: entry,
+                    meaning: ""
+                });
+            }
+        }
+        
+        // 重置測驗
+        function resetTest() {
+            currentIndex = -1;
+            showingWord = true;
+            
+            // 根據選項排序單字
+            const orderMode = document.querySelector('input[name="order-mode"]:checked').value;
+            if (orderMode === "random") {
+                // 隨機打亂順序
+                shuffleArray(vocabulary);
+            }
+            
+            nextWord();
+        }
+        
+        // 下一個單字
+        function nextWord() {
+            if (vocabulary.length === 0) {
+                document.getElementById("test-status").textContent = "請先匯入單字表！";
+                return;
+            }
+            
+            currentIndex = (currentIndex + 1) % vocabulary.length;
+            const wordCounter = document.getElementById("word-counter");
+            wordCounter.textContent = `${currentIndex + 1}/${vocabulary.length}`;
+            
+            const testMode = document.querySelector('input[name="test-mode"]:checked').value;
+            
+            // 重置卡片狀態
+            showingWord = true;
+            if (testMode === "meaning-to-word" || (testMode === "random" && Math.random() < 0.5)) {
+                showingWord = false;
+            }
+            
+            updateCardDisplay();
+        }
+        
+        // 翻轉卡片
+        function flipCard() {
+            showingWord = !showingWord;
+            updateCardDisplay();
+        }
+        
+        // 更新卡片顯示
+        function updateCardDisplay() {
+            const currentWordElement = document.getElementById("current-word");
+            const currentMeaningElement = document.getElementById("current-meaning");
+            
+            if (currentIndex >= 0 && currentIndex < vocabulary.length) {
+                const item = vocabulary[currentIndex];
+                
+                if (showingWord) {
+                    currentWordElement.textContent = item.word;
+                    currentWordElement.classList.remove("hidden");
+                    currentMeaningElement.classList.add("hidden");
+                } else {
+                    if (item.meaning) {
+                        currentMeaningElement.textContent = item.meaning;
+                    } else {
+                        currentMeaningElement.textContent = "（無答案）";
+                    }
+                    currentWordElement.classList.add("hidden");
+                    currentMeaningElement.classList.remove("hidden");
+                }
+            }
+        }
+        
+        // 打亂數組順序
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+        
+        // 為設定中的選項添加事件監聽器
+        document.querySelectorAll('input[name="test-mode"], input[name="order-mode"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (vocabulary.length > 0) {
+                    resetTest();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
